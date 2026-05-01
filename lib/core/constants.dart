@@ -1,6 +1,6 @@
 // File: lib/core/constants.dart
 import 'package:flutter/material.dart';
-import 'theme.dart'; // Import theme to use the single AppColors class
+import 'theme.dart';
 
 enum UserRole { civilian, ngo, volunteer }
 
@@ -23,4 +23,5 @@ class AppConstants {
   static const String boxFoodNeeds = "foodNeeds";
   static const String boxFoodCamps = "foodCamps";
   static const String boxFoodReports = "foodReports";
+  static const String boxAiCache = "aiCache"; // New: Persistent AI insights
 }

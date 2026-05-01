@@ -1,5 +1,6 @@
 // File: lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart'; // Added for Firebase
 import 'core/constants.dart';
@@ -20,6 +21,9 @@ void main() async {
   // 1. Ensure Flutter is fully initialized
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Load the .env file
+  await dotenv.load(fileName: ".env");
+
   try {
     // 2. Initialize Firebase (The Cloud Bridge)
     // Note: Ensure you have added google-services.json (Android)
@@ -38,6 +42,7 @@ void main() async {
     await Hive.openBox<FoodReport>(AppConstants.boxFoodReports);
     await Hive.openBox<FoodNeed>(AppConstants.boxFoodNeeds);
     await Hive.openBox<FoodCamp>(AppConstants.boxFoodCamps);
+    await Hive.openBox(AppConstants.boxAiCache);
 
     // 4. Initialize the Sync Engine
     // This starts the background listener for internet connectivity
