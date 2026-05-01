@@ -1,10 +1,12 @@
 // File: lib/features/ngo/ngo_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'dart:ui';
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import '../../data/models/camp.dart';
 import 'create_camp_form.dart';
-import 'shortage_analytics_screen.dart'; // Import Phase 6
+import 'shortage_analytics_screen.dart';
 
 class NGOHomeScreen extends StatelessWidget {
   const NGOHomeScreen({super.key});
@@ -13,154 +15,198 @@ class NGOHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text("Active Food Camps"),
-        actions: [
-          IconButton(
-            tooltip: "Shortage Awareness",
-            icon: const Icon(Icons.analytics_outlined),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ShortageAnalyticsScreen()),
-            ),
-          ),
-        ],
-      ),
-      body: ValueListenableBuilder(
-        valueListenable: Hive.box<FoodCamp>(AppConstants.boxFoodCamps).listenable(),
-        builder: (context, Box<FoodCamp> box, _) {
-          if (box.isEmpty) {
-            return _buildEmptyState(context);
-          }
-
-          final camps = box.values.toList().reversed.toList();
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: camps.length,
-            itemBuilder: (context, index) {
-              final camp = camps[index];
-              return _buildCampCard(context, camp);
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const CreateCampForm()),
-        ),
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add_location_alt, color: Colors.white),
-        label: const Text("New Food Camp", style: TextStyle(color: Colors.white)),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      body: Stack(
         children: [
-          Icon(Icons.villa_outlined, size: 80, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          const Text("No active food camps created", style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const CreateCampForm()),
+          // Immersive NGO Background (Management/Logistics focus)
+          Positioned.fill(
+            child: Image.network(
+              "https://images.unsplash.com/photo-1469571483311-0b9e81d72567?auto=format&fit=crop&w=1200",
+              fit: BoxFit.cover,
             ),
-            child: const Text("Set Up First Camp"),
+          ),
+          Positioned.fill(child: Container(color: Colors.black.withOpacity(0.75))),
+
+          SafeArea(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                _buildSliverHeader(context),
+                _buildCampList(),
+              ],
+            ),
           ),
         ],
       ),
+      floatingActionButton: _buildGlassFAB(context),
     );
   }
 
-  Widget _buildCampCard(BuildContext context, FoodCamp camp) {
-    return Card(
+  Widget _buildSliverHeader(BuildContext context) {
+    return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(24.0),
+        child: Row(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    camp.name,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                const Text(
+                  "CENTRAL COMMAND",
+                  style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w900, letterSpacing: 3, fontSize: 10),
                 ),
-                _buildStatusChip(camp.status),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(camp.time, style: const TextStyle(color: Colors.grey)),
-                const SizedBox(width: 16),
-                const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(camp.location, style: const TextStyle(color: Colors.grey)),
-              ],
-            ),
-            const Divider(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Meals Available", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text(
-                      "${camp.mealsAvailable}",
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text("Verify Code", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    Text(
-                      camp.verificationCode,
-                      style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.accent,
-                          letterSpacing: 2
-                      ),
-                    ),
-                  ],
+                const Text(
+                  "NGO Panel",
+                  style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
+            const Spacer(),
+            _buildHeaderAction(context, Icons.analytics_outlined, const ShortageAnalyticsScreen()),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildHeaderAction(BuildContext context, IconData icon, Widget target) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: AppStyles.glass(radius: 12),
+          child: IconButton(
+            icon: Icon(icon, color: Colors.white),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => target)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCampList() {
+    return ValueListenableBuilder(
+      valueListenable: Hive.box<FoodCamp>(AppConstants.boxFoodCamps).listenable(),
+      builder: (context, Box<FoodCamp> box, _) {
+        if (box.isEmpty) {
+          return SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Text("No active camps found", style: TextStyle(color: Colors.white.withOpacity(0.5))),
+            ),
+          );
+        }
+
+        final camps = box.values.toList().reversed.toList();
+
+        return SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                final camp = camps[index];
+                return _buildGlassCampCard(camp);
+              },
+              childCount: camps.length,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGlassCampCard(FoodCamp camp) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: AppStyles.glass(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(camp.name, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    ),
+                    _buildStatusChip(camp.status),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.location_on_outlined, size: 14, color: Colors.white.withOpacity(0.5)),
+                    const SizedBox(width: 4),
+                    Text(camp.location, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+                    const SizedBox(width: 16),
+                    Icon(Icons.access_time, size: 14, color: Colors.white.withOpacity(0.5)),
+                    const SizedBox(width: 4),
+                    Text(camp.time, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+                  ],
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Divider(color: Colors.white10),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("MEALS LEFT", style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
+                        Text("${camp.mealsAvailable}", style: const TextStyle(color: AppColors.primary, fontSize: 24, fontWeight: FontWeight.w900)),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text("AUTH CODE", style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
+                        Text(camp.verificationCode, style: const TextStyle(color: AppColors.accent, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatusChip(String status) {
-    Color color = Colors.green;
-    if (status == "LOW") color = Colors.orange;
-    if (status == "CLOSED") color = Colors.red;
+    Color color = AppColors.success;
+    if (status == "LOW") color = AppColors.warning;
+    if (status == "CLOSED") color = AppColors.error;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Text(
-        status,
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+      child: Text(status, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildGlassFAB(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: FloatingActionButton.extended(
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateCampForm())),
+          backgroundColor: AppColors.primary.withOpacity(0.8),
+          icon: const Icon(Icons.add_location_alt_outlined, color: Colors.white),
+          label: const Text("ESTABLISH CAMP", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
       ),
     );
   }

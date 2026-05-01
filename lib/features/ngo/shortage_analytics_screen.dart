@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // Explicitly added for ValueListenable
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import '../../data/models/food_need.dart';
 import '../../data/models/camp.dart';
 

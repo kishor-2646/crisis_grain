@@ -23,7 +23,7 @@ class FoodCampAdapter extends TypeAdapter<FoodCamp> {
       time: fields[3] as String,
       mealsAvailable: fields[4] as int,
       verificationCode: fields[5] as String,
-      status: fields[6] as String,
+      status: fields[6] as String, contactPhone: '',
     );
   }
 

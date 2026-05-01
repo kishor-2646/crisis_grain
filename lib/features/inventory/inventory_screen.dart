@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import '../../data/models/food_report.dart';
 import '../map/crisis_map_screen.dart';
 import '../advisor/advisor_screen.dart';

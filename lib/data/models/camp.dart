@@ -21,10 +21,13 @@ class FoodCamp extends HiveObject {
   int mealsAvailable;
 
   @HiveField(5)
-  final String verificationCode; // The 4-digit WOW feature
+  final String verificationCode;
 
   @HiveField(6)
   final String status; // OPEN, LOW, CLOSED
+
+  @HiveField(7)
+  final String contactPhone; // Required for civilian-to-camp SMS
 
   FoodCamp({
     required this.id,
@@ -34,5 +37,6 @@ class FoodCamp extends HiveObject {
     required this.mealsAvailable,
     required this.verificationCode,
     this.status = "OPEN",
+    required this.contactPhone,
   });
 }

@@ -161,7 +161,7 @@ class SyncService {
           time: data['time'] ?? 'N/A',
           mealsAvailable: data['mealsAvailable'] ?? 0,
           verificationCode: data['verificationCode'] ?? '0000',
-          status: data['status'] ?? 'OPEN',
+          status: data['status'] ?? 'OPEN', contactPhone: '',
         );
         await box.put(camp.id, camp);
       }

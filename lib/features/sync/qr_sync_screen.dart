@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:hive/hive.dart';
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import '../../data/models/food_report.dart';
 import 'sync_logic.dart';
 

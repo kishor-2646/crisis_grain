@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart'; // Ensure intl is in pubspec.yaml
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import '../../data/models/food_need.dart';
 
 class NeedHistoryScreen extends StatelessWidget {

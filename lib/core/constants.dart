@@ -1,19 +1,8 @@
 // File: lib/core/constants.dart
 import 'package:flutter/material.dart';
+import 'theme.dart'; // Import theme to use the single AppColors class
 
-/// Defines the roles for the system
 enum UserRole { civilian, ngo, volunteer }
-
-class AppColors {
-  static const primary = Color(0xFF1B5E20); // Deep Humanitarian Green
-  static const secondary = Color(0xFF2E7D32);
-  static const background = Color(0xFFF5F5F5);
-  static const surface = Colors.white;
-  static const error = Color(0xFFD32F2F);
-  static const warning = Color(0xFFFFA000);
-  static const success = Color(0xFF388E3C);
-  static const accent = Color(0xFF1976D2); // Trust Blue
-}
 
 class AppUrgency {
   static const String surplus = "SURPLUS";
@@ -30,7 +19,6 @@ class AppUrgency {
   }
 }
 
-/// Hive Box names
 class AppConstants {
   static const String boxFoodNeeds = "foodNeeds";
   static const String boxFoodCamps = "foodCamps";

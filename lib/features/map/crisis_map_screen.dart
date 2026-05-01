@@ -9,6 +9,7 @@ import 'package:flutter_map_cache/flutter_map_cache.dart'; // Added for Offline 
 import 'package:dio_cache_interceptor_file_store/dio_cache_interceptor_file_store.dart';
 import 'dart:io';
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import '../../data/models/food_report.dart';
 import '../../data/models/camp.dart';
 

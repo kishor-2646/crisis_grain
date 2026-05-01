@@ -1,6 +1,7 @@
 // File: lib/features/advisor/advisor_screen.dart
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import 'advisor_logic.dart';
 
 class AdvisorScreen extends StatefulWidget {

@@ -1,11 +1,17 @@
 // File: lib/core/sms_utils.dart
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'dart:io';
 
 class SMSUtils {
-  // Default fallback hotline
   static const String emergencyHotline = "+919000000000";
+
+  // --- TWILIO CONFIGURATION ---
+  static const String _accountSid = 'YOUR_TWILIO_ACCOUNT_SID';
+  static const String _authToken = 'YOUR_TWILIO_AUTH_TOKEN';
+  static const String _twilioNumber = 'YOUR_TWILIO_PHONE_NUMBER';
 
   static String generateNeedMessage(int count, String area) {
     return "CG-NEED:$count people @$area. #CrisisGrain";
@@ -15,16 +21,9 @@ class SMSUtils {
     return "FOOD ALERT: $name is ACTIVE @$loc. Verification Code: $code. #CrisisGrain";
   }
 
-  /// Launches the native SMS app with one or more recipients.
-  ///
-  /// NOTE: This does NOT require an internet connection. It utilizes the
-  /// cellular network (telephony system) which works independently of
-  /// data/Wi-Fi, making it perfect for disaster zones.
+  /// NATIVE METHOD (No Internet Required)
   static Future<void> launchSMS(String message, {List<String>? recipients}) async {
-    // Semicolon is preferred for Android multi-SMS, Comma for iOS
     final String separator = Platform.isAndroid ? ';' : ',';
-
-    // Join recipients if provided, otherwise fallback to the hotline
     final String target = (recipients != null && recipients.isNotEmpty)
         ? recipients.join(separator)
         : emergencyHotline;
@@ -32,63 +31,51 @@ class SMSUtils {
     final Uri smsUri = Uri(
       scheme: 'sms',
       path: target,
-      queryParameters: <String, String>{
-        'body': message,
-      },
+      queryParameters: <String, String>{'body': message},
     );
 
     try {
-      // canLaunchUrl checks if an app is available to handle the 'sms' scheme
-      bool canLaunch = await canLaunchUrl(smsUri);
-
-      if (canLaunch) {
-        // Mode externalApplication is required to hand over control to the
-        // system's native SMS handler.
-        await launchUrl(
-          smsUri,
-          mode: LaunchMode.externalApplication,
-        );
-      } else {
-        // Fallback for specific device variants that struggle with structured URI objects
-        final String encodedMsg = Uri.encodeComponent(message);
-        final String simpleUrl = "sms:$target?body=$encodedMsg";
-        final Uri simpleUri = Uri.parse(simpleUrl);
-
-        if (await canLaunchUrl(simpleUri)) {
-          await launchUrl(simpleUri, mode: LaunchMode.externalApplication);
-        } else {
-          debugPrint("CrisisGrain: All SMS launch attempts failed for target: $target");
-        }
+      if (await canLaunchUrl(smsUri)) {
+        await launchUrl(smsUri, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      debugPrint("CrisisGrain: SMS Broadcast Error: $e");
+      debugPrint("SMS Error: $e");
     }
   }
 
-  /// PROFESSIONAL/GOVERNMENT METHOD:
-  /// Sends a request to a Cloud Gateway (like Twilio or a Govt API) to
-  /// broadcast a message to ALL devices currently detected in a Geofence.
-  ///
-  /// This bypasses the need for the app to know individual phone numbers.
+  /// PROFESSIONAL GATEWAY METHOD (Requires Internet)
+  /// Updated to accept 'recipients' parameter
   static Future<bool> triggerGatewayBroadcast({
     required String areaName,
     required String message,
+    required List<String> recipients,
   }) async {
-    debugPrint("CrisisGrain: Initializing Gateway Broadcast for $areaName...");
+    if (recipients.isEmpty) return false;
 
-    try {
-      // In a real scenario, this would be a POST request to a secure API:
-      // await http.post(Uri.parse('https://api.govt-relief.gov/broadcast'),
-      //    body: {'area': areaName, 'msg': message});
+    debugPrint("CrisisGrain: Initializing Gateway for ${recipients.length} users...");
+    bool allSuccessful = true;
 
-      // Simulation delay
-      await Future.delayed(const Duration(seconds: 2));
+    for (String number in recipients) {
+      try {
+        final response = await http.post(
+          Uri.parse('https://api.twilio.com/2010-04-01/Accounts/$_accountSid/Messages.json'),
+          headers: {
+            'Authorization': 'Basic ' + base64Encode(utf8.encode('$_accountSid:$_authToken')),
+          },
+          body: {
+            'From': _twilioNumber,
+            'To': number,
+            'Body': message,
+          },
+        ).timeout(const Duration(seconds: 10));
 
-      debugPrint("CrisisGrain: Gateway accepted broadcast request for area: $areaName");
-      return true;
-    } catch (e) {
-      debugPrint("CrisisGrain: Gateway failure: $e");
-      return false;
+        if (response.statusCode != 201) {
+          allSuccessful = false;
+        }
+      } catch (e) {
+        allSuccessful = false;
+      }
     }
+    return allSuccessful;
   }
 }

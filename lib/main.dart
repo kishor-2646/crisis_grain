@@ -6,6 +6,7 @@ import 'core/constants.dart';
 import 'core/sync_service.dart'; // Added for Sync Logic
 
 // Models
+import 'core/theme.dart';
 import 'data/models/food_report.dart';
 import 'data/models/food_need.dart';
 import 'data/models/camp.dart';
