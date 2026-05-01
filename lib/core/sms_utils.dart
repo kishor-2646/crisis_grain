@@ -64,4 +64,31 @@ class SMSUtils {
       debugPrint("CrisisGrain: SMS Broadcast Error: $e");
     }
   }
+
+  /// PROFESSIONAL/GOVERNMENT METHOD:
+  /// Sends a request to a Cloud Gateway (like Twilio or a Govt API) to
+  /// broadcast a message to ALL devices currently detected in a Geofence.
+  ///
+  /// This bypasses the need for the app to know individual phone numbers.
+  static Future<bool> triggerGatewayBroadcast({
+    required String areaName,
+    required String message,
+  }) async {
+    debugPrint("CrisisGrain: Initializing Gateway Broadcast for $areaName...");
+
+    try {
+      // In a real scenario, this would be a POST request to a secure API:
+      // await http.post(Uri.parse('https://api.govt-relief.gov/broadcast'),
+      //    body: {'area': areaName, 'msg': message});
+
+      // Simulation delay
+      await Future.delayed(const Duration(seconds: 2));
+
+      debugPrint("CrisisGrain: Gateway accepted broadcast request for area: $areaName");
+      return true;
+    } catch (e) {
+      debugPrint("CrisisGrain: Gateway failure: $e");
+      return false;
+    }
+  }
 }

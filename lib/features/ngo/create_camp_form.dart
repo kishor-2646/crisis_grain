@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import '../../core/constants.dart';
 import '../../core/sms_utils.dart';
-import '../../core/sync_service.dart'; // Import SyncService for cloud fetch
+import '../../core/sync_service.dart';
 import '../../data/models/camp.dart';
 import '../../data/models/food_need.dart';
 
@@ -59,10 +59,8 @@ class _CreateCampFormState extends State<CreateCampForm> {
     setState(() => _isBroadcasting = true);
 
     // 1. FETCH RECIPIENTS: Hybrid Search
-    // First, try Cloud (to find all civilians in area)
     List<String> recipients = await SyncService().getCloudPhoneNumbersForArea(camp.location);
 
-    // Second, Merge with Local (in case any were created offline on this device)
     final localBox = Hive.box<FoodNeed>(AppConstants.boxFoodNeeds);
     final targetArea = camp.location.toLowerCase().trim();
     final localNumbers = localBox.values
@@ -70,7 +68,6 @@ class _CreateCampFormState extends State<CreateCampForm> {
         .map((n) => n.phoneNumber)
         .toList();
 
-    // Combine and deduplicate
     final finalRecipients = {...recipients, ...localNumbers}.toList();
 
     setState(() => _isBroadcasting = false);
@@ -81,7 +78,7 @@ class _CreateCampFormState extends State<CreateCampForm> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text("Broadcast Alert"),
+        title: const Text("Camp Activated!"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,35 +86,77 @@ class _CreateCampFormState extends State<CreateCampForm> {
             Text("Ready to notify ${finalRecipients.length} civilians in ${camp.location}."),
             const SizedBox(height: 12),
             const Text(
-              "This will open your SMS app with all numbers pre-filled as a bulk message.",
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              "Choose Broadcast Method:",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("SKIP"),
-          ),
-          ElevatedButton(
+          // Option 1: Native SMS (Bulk)
+          ElevatedButton.icon(
             onPressed: () {
-              final msg = SMSUtils.generateCampBroadcast(
-                  camp.name,
-                  camp.location,
-                  camp.verificationCode
-              );
-
-              // 2. BULK SMS: Send to everyone found in the cloud + local
+              final msg = SMSUtils.generateCampBroadcast(camp.name, camp.location, camp.verificationCode);
               SMSUtils.launchSMS(msg, recipients: finalRecipients);
-
               Navigator.pop(context);
               Navigator.pop(context);
             },
-            child: const Text("SEND BULK SMS"),
+            icon: const Icon(Icons.message, size: 18),
+            label: const Text("SEND BULK SMS"),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[800], foregroundColor: Colors.white),
+          ),
+          const SizedBox(height: 8),
+          // Option 2: Professional Gateway Broadcast (Simulation)
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog first
+              _triggerGateway(camp);
+            },
+            icon: const Icon(Icons.router, size: 18),
+            label: const Text("GOVT. GATEWAY BROADCAST"),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, foregroundColor: Colors.white),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CANCEL / SKIP"),
           ),
         ],
+        actionsAlignment: MainAxisAlignment.center,
+        actionsOverflowButtonSpacing: 8,
       ),
     );
+  }
+
+  void _triggerGateway(FoodCamp camp) async {
+    // Show a global loader for the simulation
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
+    );
+
+    final msg = SMSUtils.generateCampBroadcast(camp.name, camp.location, camp.verificationCode);
+    final success = await SMSUtils.triggerGatewayBroadcast(
+      areaName: camp.location,
+      message: msg,
+    );
+
+    if (!mounted) return;
+    Navigator.pop(context); // Remove loader
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Success: Request sent to Central Emergency Gateway for ${camp.location}"),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      Navigator.pop(context); // Go back home
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Gateway Error: Unable to reach broadcast server"), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override

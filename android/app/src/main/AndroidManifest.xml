@@ -2,6 +2,8 @@
 
     <!-- 1. Add Internet Permission if not already there -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- 2. ADD THIS QUERIES BLOCK (Outside the <application> tag) -->
     <queries>
