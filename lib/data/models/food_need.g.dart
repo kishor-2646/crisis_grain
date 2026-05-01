@@ -16,19 +16,23 @@ class FoodNeedAdapter extends TypeAdapter<FoodNeed> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
+
+    // Using null-safe casting with default values to handle schema migrations
     return FoodNeed(
       id: fields[0] as String,
       peopleCount: fields[1] as int,
       locationArea: fields[2] as String,
       createdAt: fields[3] as DateTime,
-      isSentViaSMS: fields[4] as bool,
+      isSentViaSMS: (fields[4] as bool?) ?? false,
+      isSynced: (fields[5] as bool?) ?? false,
+      phoneNumber: (fields[6] as String?) ?? "N/A",
     );
   }
 
   @override
   void write(BinaryWriter writer, FoodNeed obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(7) // Correctly writing 7 fields
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -38,7 +42,11 @@ class FoodNeedAdapter extends TypeAdapter<FoodNeed> {
       ..writeByte(3)
       ..write(obj.createdAt)
       ..writeByte(4)
-      ..write(obj.isSentViaSMS);
+      ..write(obj.isSentViaSMS)
+      ..writeByte(5)
+      ..write(obj.isSynced)
+      ..writeByte(6)
+      ..write(obj.phoneNumber);
   }
 
   @override
@@ -47,7 +55,7 @@ class FoodNeedAdapter extends TypeAdapter<FoodNeed> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is FoodNeedAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
+          other is FoodNeedAdapter &&
+              runtimeType == other.runtimeType &&
+              typeId == other.typeId;
 }

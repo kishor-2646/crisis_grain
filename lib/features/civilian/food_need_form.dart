@@ -1,7 +1,9 @@
 // File: lib/features/civilian/food_need_form.dart
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../core/constants.dart';
+import '../../core/sms_utils.dart';
 import '../../data/models/food_need.dart';
 
 class FoodNeedForm extends StatefulWidget {
@@ -14,51 +16,65 @@ class FoodNeedForm extends StatefulWidget {
 class _FoodNeedFormState extends State<FoodNeedForm> {
   final _countController = TextEditingController();
   final _areaController = TextEditingController();
+  final _phoneController = TextEditingController();
 
-  void _submitNeed() async {
-    if (_countController.text.isEmpty || _areaController.text.isEmpty) return;
+  void _processSubmission() async {
+    final count = int.tryParse(_countController.text) ?? 1;
+    final area = _areaController.text.trim();
+    final phone = _phoneController.text.trim();
+
+    if (area.isEmpty || phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill in all fields.")),
+      );
+      return;
+    }
 
     final need = FoodNeed(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      peopleCount: int.tryParse(_countController.text) ?? 1,
-      locationArea: _areaController.text,
+      peopleCount: count,
+      locationArea: area,
+      phoneNumber: phone,
       createdAt: DateTime.now(),
-      isSentViaSMS: true, // For demo, we assume SMS intent
     );
 
+    // 1. Save to Local Hive
     await Hive.box<FoodNeed>(AppConstants.boxFoodNeeds).add(need);
 
-    if (mounted) {
-      _showSMSSimulation(need);
+    // 2. Check Connectivity for Fallback
+    final results = await Connectivity().checkConnectivity();
+    // Handling both singular and list result versions of connectivity_plus
+    final hasNoSignal = results is List
+        ? (results as List).every((r) => r == ConnectivityResult.none)
+        : results == ConnectivityResult.none;
+
+    if (hasNoSignal) {
+      _showSMSDialog(count, area);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Signal found. Syncing to NGO map...")),
+      );
+      Navigator.pop(context);
     }
   }
 
-  void _showSMSSimulation(FoodNeed need) {
+  void _showSMSDialog(int count, String area) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("SMS Broadcast Preview"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("This message will be sent to the local gateway:"),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(8)),
-              child: Text(
-                "CG NEED ${need.peopleCount} PEOPLE | AREA: ${need.locationArea}",
-                style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace'),
-              ),
-            ),
-          ],
-        ),
+        title: const Text("📡 No Internet Connection"),
+        content: const Text("Would you like to send this request via SMS to our emergency relief line?"),
         actions: [
           TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("LATER"),
+          ),
+          ElevatedButton(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Go back home
+              final msg = SMSUtils.generateNeedMessage(count, area);
+              SMSUtils.launchSMS(msg);
+              Navigator.pop(context); // Close Dialog
+              Navigator.pop(context); // Back to Home
             },
             child: const Text("SEND SMS"),
           ),
@@ -70,34 +86,50 @@ class _FoodNeedFormState extends State<FoodNeedForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Request Assistance")),
-      body: Padding(
+      appBar: AppBar(title: const Text("Request Food")),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("How many people need food?", style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
             TextField(
               controller: _countController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(hintText: "e.g., 4", border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: "How many people?",
+                border: OutlineInputBorder(),
+              ),
             ),
-            const SizedBox(height: 20),
-            const Text("Your Area / Neighborhood", style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             TextField(
               controller: _areaController,
-              decoration: const InputDecoration(hintText: "e.g., Sector 4 North", border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: "Current Location / Area",
+                hintText: "e.g. Sector 7",
+                border: OutlineInputBorder(),
+              ),
             ),
-            const Spacer(),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: "Your Phone Number",
+                hintText: "Required for rescue coordination",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 32),
             ElevatedButton(
-              onPressed: _submitNeed,
+              onPressed: _processSubmission,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                minimumSize: const Size(double.infinity, 56),
+                minimumSize: const Size(double.infinity, 60),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text("Send Request via SMS", style: TextStyle(color: Colors.white, fontSize: 16)),
+              child: const Text(
+                "SUBMIT REQUEST",
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
