@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "765884690752",
+    "project_id": "crisisgrain-d18d7",
+    "storage_bucket": "crisisgrain-d18d7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:765884690752:android:3298f2cbffa730e8b58aa5",
+        "android_client_info": {
+          "package_name": "com.example.crisis_grain"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRjoiGU9BJdyEpSkbdIhLWJy5T6mmrJ_E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
