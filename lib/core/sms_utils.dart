@@ -15,8 +15,11 @@ class SMSUtils {
     return "FOOD ALERT: $name is ACTIVE @$loc. Verification Code: $code. #CrisisGrain";
   }
 
-  /// Launches the native SMS app with one or more recipients
-  /// [recipients] can be a list of phone numbers for a broadcast
+  /// Launches the native SMS app with one or more recipients.
+  ///
+  /// NOTE: This does NOT require an internet connection. It utilizes the
+  /// cellular network (telephony system) which works independently of
+  /// data/Wi-Fi, making it perfect for disaster zones.
   static Future<void> launchSMS(String message, {List<String>? recipients}) async {
     // Semicolon is preferred for Android multi-SMS, Comma for iOS
     final String separator = Platform.isAndroid ? ';' : ',';
@@ -35,16 +38,18 @@ class SMSUtils {
     );
 
     try {
+      // canLaunchUrl checks if an app is available to handle the 'sms' scheme
       bool canLaunch = await canLaunchUrl(smsUri);
 
       if (canLaunch) {
-        // Mode externalApplication is required to leave the app and open the system SMS handler
+        // Mode externalApplication is required to hand over control to the
+        // system's native SMS handler.
         await launchUrl(
           smsUri,
           mode: LaunchMode.externalApplication,
         );
       } else {
-        // Fallback for specific device variants that struggle with URI construction
+        // Fallback for specific device variants that struggle with structured URI objects
         final String encodedMsg = Uri.encodeComponent(message);
         final String simpleUrl = "sms:$target?body=$encodedMsg";
         final Uri simpleUri = Uri.parse(simpleUrl);

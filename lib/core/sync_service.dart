@@ -35,11 +35,44 @@ class SyncService {
     });
   }
 
+  /// NEW: Fetches all phone numbers for a specific area from the global cloud database
+  Future<List<String>> getCloudPhoneNumbersForArea(String area) async {
+    try {
+      debugPrint('CrisisGrain: [CLOUD FETCH] Querying numbers for area: $area');
+
+      // Query Firestore for all 'needs' where the location matches
+      // Note: In a production app with thousands of records, you would use a 'where' query.
+      // For this hackathon, we fetch and filter to avoid index-creation delay errors.
+      final snapshot = await _firestore.collection('needs')
+          .get()
+          .timeout(const Duration(seconds: 10));
+
+      final targetArea = area.toLowerCase().trim();
+
+      final List<String> numbers = snapshot.docs
+          .where((doc) {
+        final data = doc.data();
+        final docArea = (data['locationArea'] ?? '').toString().toLowerCase().trim();
+        return docArea == targetArea;
+      })
+          .map((doc) => (doc.data()['phoneNumber'] ?? '').toString())
+          .where((phone) => phone.isNotEmpty)
+          .toSet() // Remove duplicates
+          .toList();
+
+      debugPrint('CrisisGrain: [CLOUD FETCH] Found ${numbers.length} unique recipients.');
+      return numbers;
+    } catch (e) {
+      debugPrint('CrisisGrain: [CLOUD FETCH ERROR] $e');
+      return [];
+    }
+  }
+
   void dispose() {
     _subscription?.cancel();
   }
 
-  /// FOR DEMO ONLY: Resets local flags so old data is treated as new
+  // ... (rest of the sync logic remains the same)
   Future<void> debugResetAllFlags() async {
     debugPrint('CrisisGrain: [DEBUG] Starting manual flag reset...');
     final needsBox = Hive.box<FoodNeed>(AppConstants.boxFoodNeeds);
@@ -50,7 +83,7 @@ class SyncService {
           id: item.id,
           peopleCount: item.peopleCount,
           locationArea: item.locationArea,
-          phoneNumber: item.phoneNumber, // Added to fix compilation error
+          phoneNumber: item.phoneNumber,
           createdAt: item.createdAt,
           isSentViaSMS: false,
           isSynced: false,
@@ -63,14 +96,9 @@ class SyncService {
 
   Future<void> performFullSync() async {
     if (_isSyncing) return;
-
     _isSyncing = true;
     syncStatus.value = "Syncing...";
-
     try {
-      debugPrint('CrisisGrain: >>> SYNC STARTING <<<');
-
-      // 1. Sync Needs
       await _syncCollection<FoodNeed>(
         boxName: AppConstants.boxFoodNeeds,
         collectionName: 'needs',
@@ -78,7 +106,7 @@ class SyncService {
         toFirestore: (item) => {
           'peopleCount': item.peopleCount,
           'locationArea': item.locationArea,
-          'phoneNumber': item.phoneNumber, // Added for cloud coordination
+          'phoneNumber': item.phoneNumber,
           'createdAt': item.createdAt.toIso8601String(),
           'type': 'NEED',
         },
@@ -86,21 +114,16 @@ class SyncService {
           id: item.id,
           peopleCount: item.peopleCount,
           locationArea: item.locationArea,
-          phoneNumber: item.phoneNumber, // Added to fix compilation error
+          phoneNumber: item.phoneNumber,
           createdAt: item.createdAt,
           isSentViaSMS: item.isSentViaSMS,
           isSynced: true,
         ),
       );
-
-      // 2. Pull Camps
       await _pullRemoteCamps();
-
       syncStatus.value = "Last sync: ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}";
-      debugPrint('CrisisGrain: >>> SYNC FINISHED <<<');
     } catch (e) {
       syncStatus.value = "Sync Error";
-      debugPrint("CrisisGrain [FATAL] Master Error: $e");
     } finally {
       _isSyncing = false;
     }
@@ -114,47 +137,21 @@ class SyncService {
     required T Function(T) markSynced,
   }) async {
     final box = Hive.box<T>(boxName);
-    debugPrint('CrisisGrain: [CHECK] Box "$boxName" has ${box.length} total items.');
-
-    for (var i = 0; i < box.length; i++) {
-      final item = box.getAt(i);
-      if (item != null) {
-        final id = (item as dynamic).id;
-        final status = isSyncedCheck(item) ? "SYNCED" : "UNSYNCED";
-        debugPrint('CrisisGrain: [ITEM] ID: $id | Status: $status');
-      }
-    }
-
     final unsynced = box.values.where((item) => !isSyncedCheck(item)).toList();
-
     for (var item in unsynced) {
       try {
         final id = (item as dynamic).id;
-        debugPrint('CrisisGrain: [PUSH] Uploading $id to collection "$collectionName"...');
-
-        await _firestore.collection(collectionName).doc(id).set(toFirestore(item))
-            .timeout(const Duration(seconds: 15));
-
+        await _firestore.collection(collectionName).doc(id).set(toFirestore(item)).timeout(const Duration(seconds: 15));
         final index = box.values.toList().indexOf(item);
         await box.putAt(index, markSynced(item));
-        debugPrint('CrisisGrain: [SUCCESS] Item $id reached the cloud.');
-      } on FirebaseException catch (e) {
-        debugPrint('CrisisGrain: [FIREBASE ERROR] Code: ${e.code} | Message: ${e.message}');
-      } on TimeoutException {
-        debugPrint('CrisisGrain: [TIMEOUT] Connection too slow to reach Firebase.');
-      } catch (e) {
-        debugPrint('CrisisGrain: [ERROR] Unknown failure during push: $e');
-      }
+      } catch (e) { debugPrint('Error syncing: $e'); }
     }
   }
 
   Future<void> _pullRemoteCamps() async {
     try {
-      debugPrint('CrisisGrain: [PULL] Fetching camps from Cloud...');
       final snapshot = await _firestore.collection('camps').get().timeout(const Duration(seconds: 10));
       final box = Hive.box<FoodCamp>(AppConstants.boxFoodCamps);
-      debugPrint('CrisisGrain: [PULL] Received ${snapshot.docs.length} camps.');
-
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final camp = FoodCamp(
@@ -168,10 +165,6 @@ class SyncService {
         );
         await box.put(camp.id, camp);
       }
-    } on FirebaseException catch (e) {
-      debugPrint('CrisisGrain: [FIREBASE ERROR PULL] Code: ${e.code} | Message: ${e.message}');
-    } catch (e) {
-      debugPrint('CrisisGrain: [PULL ERROR] $e');
-    }
+    } catch (e) { debugPrint('Pull error: $e'); }
   }
 }
