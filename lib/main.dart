@@ -1,0 +1,132 @@
+// File: lib/main.dart
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'core/constants.dart';
+
+// Models
+import 'data/models/food_report.dart';
+import 'data/models/food_need.dart';
+import 'data/models/camp.dart';
+
+// Screens
+import 'features/civilian/civilian_home_screen.dart';
+import 'features/ngo/ngo_home_screen.dart';
+import 'features/volunteer/volunteer_home_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+
+  // Register Adapters
+  if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(FoodReportAdapter());
+  if (!Hive.isAdapterRegistered(1)) Hive.registerAdapter(FoodNeedAdapter());
+  if (!Hive.isAdapterRegistered(2)) Hive.registerAdapter(FoodCampAdapter());
+
+  // Open Boxes
+  await Hive.openBox<FoodReport>(AppConstants.boxFoodReports);
+  await Hive.openBox<FoodNeed>(AppConstants.boxFoodNeeds);
+  await Hive.openBox<FoodCamp>(AppConstants.boxFoodCamps);
+
+  runApp(const CrisisGrainApp());
+}
+
+class CrisisGrainApp extends StatefulWidget {
+  const CrisisGrainApp({super.key});
+
+  @override
+  State<CrisisGrainApp> createState() => _CrisisGrainAppState();
+}
+
+class _CrisisGrainAppState extends State<CrisisGrainApp> {
+  UserRole currentRole = UserRole.civilian;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'CrisisGrain',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      // FIXED: Wrapped home in a Builder to provide a valid context for the Navigator
+      home: Builder(
+        builder: (context) => Scaffold(
+          drawer: Drawer(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                const DrawerHeader(
+                  decoration: BoxDecoration(color: AppColors.primary),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(backgroundColor: Colors.white, child: Icon(Icons.person, color: AppColors.primary)),
+                      SizedBox(height: 10),
+                      Text("CrisisGrain Switcher", style: TextStyle(color: Colors.white, fontSize: 18)),
+                    ],
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.person_outline),
+                  title: const Text("🏠 Civilian View"),
+                  selected: currentRole == UserRole.civilian,
+                  onTap: () {
+                    setState(() => currentRole = UserRole.civilian);
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.business_outlined),
+                  title: const Text("🏛️ NGO Panel"),
+                  selected: currentRole == UserRole.ngo,
+                  onTap: () {
+                    setState(() => currentRole = UserRole.ngo);
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.local_shipping_outlined),
+                  title: const Text("🚚 Volunteer Verification"),
+                  selected: currentRole == UserRole.volunteer,
+                  onTap: () {
+                    setState(() => currentRole = UserRole.volunteer);
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+          appBar: AppBar(
+            title: Text(_getAppBarTitle()),
+          ),
+          body: _buildBodyForRole(),
+        ),
+      ),
+    );
+  }
+
+  String _getAppBarTitle() {
+    switch (currentRole) {
+      case UserRole.civilian: return "CrisisGrain: CIVILIAN";
+      case UserRole.ngo: return "CrisisGrain: NGO PANEL";
+      case UserRole.volunteer: return "CrisisGrain: VOLUNTEER";
+      default: return "CrisisGrain";
+    }
+  }
+
+  Widget _buildBodyForRole() {
+    switch (currentRole) {
+      case UserRole.civilian: return const CivilianHomeScreen();
+      case UserRole.ngo: return const NGOHomeScreen();
+      case UserRole.volunteer: return const VolunteerHomeScreen();
+      default: return const Center(child: Text("Select a role from the drawer"));
+    }
+  }
+}
