@@ -14,6 +14,7 @@ import '../../data/models/food_report.dart';
 import '../../data/models/camp.dart';
 import 'food_need_form.dart';
 import 'survival_intelligence_screen.dart';
+import 'need_history_screen.dart'; // Added: Import for history screen
 import '../map/crisis_map_screen.dart';
 import '../inventory/inventory_screen.dart';
 
@@ -299,7 +300,7 @@ class _CivilianHomeScreenState extends State<CivilianHomeScreen> {
         _buildToolCard(
           context,
           "Survival Advisor",
-          "Estimated survival tips",
+          "Estimated Survival tips",
           Icons.psychology_rounded,
           Colors.deepPurple,
               () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SurvivalIntelligenceScreen())),
@@ -307,10 +308,10 @@ class _CivilianHomeScreenState extends State<CivilianHomeScreen> {
         _buildToolCard(
           context,
           "History",
-          "Sync reports",
+          "My requests", // Updated label
           Icons.history_edu_rounded,
           Colors.orange[800]!,
-              () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cloud sync triggered..."))),
+              () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NeedHistoryScreen())), // Updated navigation
         ),
       ],
     );

@@ -1,7 +1,6 @@
 // File: lib/features/civilian/food_need_form.dart
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/constants.dart';
 import '../../core/sms_utils.dart';
 import '../../data/models/food_need.dart';
@@ -19,64 +18,97 @@ class _FoodNeedFormState extends State<FoodNeedForm> {
   final _phoneController = TextEditingController();
 
   void _processSubmission() async {
-    final count = int.tryParse(_countController.text) ?? 1;
+    final countText = _countController.text.trim();
     final area = _areaController.text.trim();
     final phone = _phoneController.text.trim();
 
-    if (area.isEmpty || phone.isEmpty) {
+    if (area.isEmpty || phone.isEmpty || countText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill in all fields.")),
       );
       return;
     }
 
+    final count = int.tryParse(countText) ?? 1;
+
+    // 1. Create and Save the model instance
     final need = FoodNeed(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       peopleCount: count,
       locationArea: area,
-      phoneNumber: phone,
+      phoneNumber: phone, // This must match the model's required field
       createdAt: DateTime.now(),
+      isSentViaSMS: false,
+      isSynced: false,
     );
 
-    // 1. Save to Local Hive
-    await Hive.box<FoodNeed>(AppConstants.boxFoodNeeds).add(need);
+    // Save to Hive
+    final box = Hive.box<FoodNeed>(AppConstants.boxFoodNeeds);
+    await box.add(need);
 
-    // 2. Check Connectivity for Fallback
-    final results = await Connectivity().checkConnectivity();
-    // Handling both singular and list result versions of connectivity_plus
-    final hasNoSignal = results is List
-        ? (results as List).every((r) => r == ConnectivityResult.none)
-        : results == ConnectivityResult.none;
-
-    if (hasNoSignal) {
-      _showSMSDialog(count, area);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Signal found. Syncing to NGO map...")),
-      );
-      Navigator.pop(context);
+    if (mounted) {
+      _showSmsPushDialog(count, area);
     }
   }
 
-  void _showSMSDialog(int count, String area) {
+  void _showSmsPushDialog(int count, String area) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text("📡 No Internet Connection"),
-        content: const Text("Would you like to send this request via SMS to our emergency relief line?"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Column(
+          children: [
+            Icon(Icons.check_circle, color: AppColors.success, size: 60),
+            SizedBox(height: 10),
+            Text("Request Logged", textAlign: TextAlign.center),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "Your request for $count people in $area has been saved locally.",
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "DEMO SMS PUSH:",
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Push this request to the nearby Sector 7 Camp coordinator via SMS.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("LATER"),
-          ),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () {
               final msg = SMSUtils.generateNeedMessage(count, area);
-              SMSUtils.launchSMS(msg);
-              Navigator.pop(context); // Close Dialog
-              Navigator.pop(context); // Back to Home
+              // Hardcoded demo number for hackathon presentation
+              SMSUtils.launchSMS(msg, recipients: ["+919876543210"]);
+
+              Navigator.pop(context);
+              Navigator.pop(context);
             },
-            child: const Text("SEND SMS"),
+            icon: const Icon(Icons.send_rounded),
+            label: const Text("PUSH SMS TO CAMP"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context);
+            },
+            child: const Text("CLOSE", style: TextStyle(color: Colors.grey)),
           ),
         ],
       ),
@@ -86,39 +118,18 @@ class _FoodNeedFormState extends State<FoodNeedForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Request Food")),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text("Request Emergency Food")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            TextField(
-              controller: _countController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: "How many people?",
-                border: OutlineInputBorder(),
-              ),
-            ),
+            _buildInputField(_countController, "How many people?", Icons.people, TextInputType.number),
             const SizedBox(height: 16),
-            TextField(
-              controller: _areaController,
-              decoration: const InputDecoration(
-                labelText: "Current Location / Area",
-                hintText: "e.g. Sector 7",
-                border: OutlineInputBorder(),
-              ),
-            ),
+            _buildInputField(_areaController, "Location / Area", Icons.location_on, TextInputType.text),
             const SizedBox(height: 16),
-            TextField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: "Your Phone Number",
-                hintText: "Required for rescue coordination",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 32),
+            _buildInputField(_phoneController, "Your Phone Number", Icons.phone, TextInputType.phone),
+            const SizedBox(height: 40),
             ElevatedButton(
               onPressed: _processSubmission,
               style: ElevatedButton.styleFrom(
@@ -126,13 +137,24 @@ class _FoodNeedFormState extends State<FoodNeedForm> {
                 minimumSize: const Size(double.infinity, 60),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text(
-                "SUBMIT REQUEST",
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
+              child: const Text("SUBMIT REQUEST", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInputField(TextEditingController ctrl, String label, IconData icon, TextInputType type) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: type,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: AppColors.primary),
+        border: const OutlineInputBorder(),
+        filled: true,
+        fillColor: Colors.white,
       ),
     );
   }

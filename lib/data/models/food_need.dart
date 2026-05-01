@@ -24,7 +24,7 @@ class FoodNeed extends HiveObject {
   final bool isSynced;
 
   @HiveField(6)
-  final String phoneNumber; // Added to support targeted broadcasts
+  final String phoneNumber; // Required for targeted SMS logic
 
   FoodNeed({
     required this.id,
